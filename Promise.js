@@ -44,8 +44,8 @@ class Promise {
           setTimeout(() => {
             try {
               callbackRet = onFulfilled(this.value)
-              if (callbackRet === this) {
-                throw new Error('cyclic reference')
+              if (callbackRet === promise) {
+                throw new TypeError('cyclic reference')
               } else if (callbackRet instanceof Promise) {
                 callbackRet.then(res => {
                   resolve(res)
@@ -64,7 +64,7 @@ class Promise {
           setTimeout(() => {
             try {
               callbackRet = onRejected(this.value)
-              isNoop ? reject(callbackRet) : resolve()
+              isNoop ? reject(callbackRet) : resolve(callbackRet)
             } catch (e) {
               reject(e)
             }
@@ -77,8 +77,8 @@ class Promise {
             setTimeout(() => {
               try {
                 callbackRet = onFulfilled(this.value)
-                if (callbackRet === this) {
-                  throw new Error('cyclic reference')
+                if (callbackRet === promise) {
+                  throw new TypeError('cyclic reference !')
                 } else if (callbackRet instanceof Promise) {
                   callbackRet.then(res => {
                     resolve(res)
@@ -89,13 +89,13 @@ class Promise {
               } catch (e) {
                 reject(e)
               }
-            })
+            },0)
           })
           this.onRejecteddCallbacks.push(() => {
             setTimeout(() => {
               try {
                 callbackRet = onRejected(this.value)
-                isNoop ? reject(callbackRet) : resolve()
+                isNoop ? reject(callbackRet) : resolve(callbackRet)
               } catch (e) {
                 reject(e)
               }
