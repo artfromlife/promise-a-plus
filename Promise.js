@@ -3,7 +3,13 @@ function resolve(value) {
         if (this.status === STATUS.PENDING) {
             this.value = value
             this.status = STATUS.FULFILLED
-            this.resolveCallbacks.forEach(cb => cb(value))
+            this.resolveCallbacks.forEach(cb => {
+                try {
+                    cb(value)
+                }catch (e) {
+                    reject.bind(this,e)
+                }
+            })
         }
     }, 0)
 }
@@ -13,7 +19,13 @@ function reject(value) {
         if (this.status === STATUS.PENDING) {
             this.value = value
             this.status = STATUS.REJECTED
-            this.rejectCallbacks.forEach(cb => cb(value))
+            this.rejectCallbacks.forEach(cb => {
+                try {
+                    cb(value)
+                }catch (e) {
+                    reject.bind(this,e)
+                }
+            })
         }
     }, 0)
 }
@@ -79,14 +91,14 @@ class Promise {
                     if (fulfilledValue instanceof Promise) {
                         fulfilledValue.then(resolve, reject)
                     } else {
-                        resolve(this.value)
+                        resolve(fulfilledValue)
                     }
                 } else if (this.status === STATUS.REJECTED) {
                     const rejectedValue = onRejected(this.value)
                     if(rejectedValue instanceof Promise){
                         rejectedValue.then(resolve,reject)
                     }else {
-                        reject(this.value)
+                        reject(rejectedValue)
                     }
                 } else {
                     this.resolveCallbacks.push(() => {
@@ -94,7 +106,7 @@ class Promise {
                         if (fulfilledValue instanceof Promise) {
                             fulfilledValue.then(resolve, reject)
                         } else {
-                            resolve(this.value)
+                            resolve(fulfilledValue)
                         }
                     })
                     this.rejectCallbacks.push(() => {
@@ -102,7 +114,7 @@ class Promise {
                         if(rejectedValue instanceof Promise){
                             rejectedValue.then(resolve,reject)
                         }else {
-                            reject(this.value)
+                            reject(rejectedValue)
                         }
                     })
                 }
