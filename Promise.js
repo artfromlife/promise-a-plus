@@ -32,25 +32,51 @@ class Promise {
 
     }
 
+    // 主要是为了处理 thenable
+    resolvePromise(promise, callbackRet, resolve, reject) {
+        if (promise === callbackRet) {
+            throw new TypeError('cyclic')
+        }  else if (typeof callbackRet === 'object' || typeof callbackRet === 'function') {
+            if (callbackRet === null) return resolve(null)
+            let then, thenableCalled = false
+            try {
+                then = callbackRet.then
+            } catch (e) {
+                return reject(e)
+            }
+            try {
+                if (typeof then === 'function') {
+                    then.call(callbackRet, v => {
+                        if (thenableCalled) return
+                        thenableCalled = true
+                        this.resolvePromise(promise, v, resolve, reject)
+                    }, e => {
+                        if (thenableCalled) return
+                        thenableCalled = true
+                        reject(e)
+                    })
+                } else {
+                    resolve(callbackRet)
+                }
+            } catch (e) {
+                if (thenableCalled) return
+                reject(e)
+            }
+        } else {
+            resolve(callbackRet)
+        }
+    }
+
     then(onFulfilled, onRejected) {
-        let isNoop = Object.prototype.toString.call(onRejected).slice(8, -1) !== 'Function'
-        onFulfilled = Object.prototype.toString.call(onFulfilled).slice(8, -1) === 'Function' ? onFulfilled : v => v
-        onRejected = Object.prototype.toString.call(onRejected).slice(8, -1) === 'Function' ? onRejected : v => v
-        let callbackRet
         let promise
         switch (this.status) {
             case Promise.FULFILLED:
                 promise = new Promise((resolve, reject) => {
                     setTimeout(() => {
                         try {
-                            callbackRet = onFulfilled(this.value)
-                            if (callbackRet === promise) {
-                                throw new TypeError('cyclic reference')
-                            } else if (callbackRet instanceof Promise) {
-                                callbackRet.then(resolve, reject)
-                            }  else {
-                                resolve(callbackRet)
-                            }
+                            if (typeof onFulfilled === 'function') {
+                                this.resolvePromise(promise, onFulfilled(this.value), resolve, reject)
+                            } else resolve(this.value)
                         } catch (e) {
                             reject(e)
                         }
@@ -61,18 +87,13 @@ class Promise {
                 promise = new Promise((resolve, reject) => {
                     setTimeout(() => {
                         try {
-                            callbackRet = onRejected(this.value)
-                            if (callbackRet === promise) {
-                                throw new TypeError('cyclic reference!')
-                            } else if (callbackRet instanceof Promise) {
-                                callbackRet.then(resolve, reject)
-                            } else {
-                                isNoop ? reject(callbackRet) : resolve(callbackRet)
-                            }
+                            if (typeof onRejected === 'function') {
+                                this.resolvePromise(promise, onRejected(this.value), resolve, reject)
+                            } else reject(this.value)
                         } catch (e) {
                             reject(e)
                         }
-                    }, 0)
+                    })
                 })
                 break;
             case Promise.PENDING:
@@ -80,30 +101,20 @@ class Promise {
                     this.onFulfilledCallbacks.push(() => {
                         setTimeout(() => {
                             try {
-                                callbackRet = onFulfilled(this.value)
-                                if (callbackRet === promise) {
-                                    throw new TypeError('cyclic reference !')
-                                } else if (callbackRet instanceof Promise) {
-                                    callbackRet.then(resolve, reject)
-                                } else {
-                                    resolve(callbackRet)
-                                }
+                                if (typeof onFulfilled === 'function') {
+                                    this.resolvePromise(promise, onFulfilled(this.value), resolve, reject)
+                                } else resolve(this.value)
                             } catch (e) {
                                 reject(e)
                             }
-                        }, 0)
+                        })
                     })
                     this.onRejecteddCallbacks.push(() => {
                         setTimeout(() => {
                             try {
-                                callbackRet = onRejected(this.value)
-                                if (callbackRet === promise) {
-                                    throw new TypeError('cyclic reference !')
-                                } else if (callbackRet instanceof Promise) {
-                                    callbackRet.then(resolve, reject)
-                                }  else {
-                                    isNoop ? reject(callbackRet) : resolve(callbackRet)
-                                }
+                                if (typeof onRejected === 'function') {
+                                    this.resolvePromise(promise, onRejected(this.value), resolve, reject)
+                                } else reject(this.value)
                             } catch (e) {
                                 reject(e)
                             }
@@ -111,8 +122,6 @@ class Promise {
                     })
                 })
                 break;
-            default:
-                break
         }
         return promise
     }

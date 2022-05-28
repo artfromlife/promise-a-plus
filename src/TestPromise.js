@@ -18,6 +18,7 @@ const q = new Promise((resolve,reject) => {
 resolve1(q)
 resolve2(p)
 
+console.log(Object.prototype.toString.call(new Promise(() => {})).slice(8,-1))
 
 
 
